@@ -1,4 +1,4 @@
-import { getSupabaseServerClient } from "@/lib/supabase";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 type AuditPayload = {
   action: string;

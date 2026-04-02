@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { getSupabaseServerClient } from "@/lib/supabase";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 type AllowedRole = "admin" | "counselor" | "student";
 
