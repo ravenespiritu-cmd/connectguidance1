@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { cancelStudentAppointment } from "@/app/appointments/actions";
+import { cancelStudentAppointment } from "@/actions/appointments";
 import { Button } from "@/components/ui/button";
 
 export function StudentAppointmentCancelButton({

@@ -9,7 +9,9 @@ import { StudentAppBackground } from "@/components/student/StudentAppBackground"
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StudentCaseHistory } from "@/components/student/StudentCaseHistory";
+import { StudentMoodCheckIn } from "@/components/student/StudentMoodCheckIn";
 import { Skeleton } from "@/components/ui/skeleton";
+import { shortDisplayName } from "@/lib/short-display-name";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -111,10 +113,38 @@ export default async function StudentDashboardPage() {
   const { data: profile } = await supabase.from("profiles").select("full_name, role").eq("id", user.id).single();
 
   if (profile?.role !== "student") {
-    redirect(profile?.role === "admin" ? "/admin" : profile?.role === "counselor" ? "/counselor" : "/login");
+    redirect(
+      profile?.role === "admin"
+        ? "/admin"
+        : profile?.role === "counselor"
+          ? "/counselor"
+          : profile?.role === "receptionist"
+            ? "/receptionist"
+            : "/login",
+    );
   }
 
-  const greetName = profile?.full_name ?? user.email?.split("@")[0] ?? "there";
+  const greetName = shortDisplayName(profile?.full_name ?? user.email ?? "there");
+
+  const { data: lastAppt } = await supabase
+    .from("appointments")
+    .select("counselor_id")
+    .eq("student_id", user.id)
+    .neq("status", "cancelled")
+    .order("scheduled_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  let recentCounselorName: string | null = null;
+  if (lastAppt?.counselor_id) {
+    const { data: c } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", lastAppt.counselor_id)
+      .eq("role", "counselor")
+      .maybeSingle();
+    recentCounselorName = c?.full_name ?? null;
+  }
 
   return (
     <StudentAppBackground>
@@ -154,6 +184,8 @@ export default async function StudentDashboardPage() {
           </p>
         </div>
 
+        <StudentMoodCheckIn recentCounselorName={recentCounselorName} />
+
         <Card className="border-amber-500/20 shadow-sm">
           <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
             <div>
@@ -175,7 +207,7 @@ export default async function StudentDashboardPage() {
           <StudentCaseHistory />
         </Suspense>
       </div>
-      <ChatbotWidget />
+      <ChatbotWidget studentId={user.id} />
     </StudentAppBackground>
   );
 }

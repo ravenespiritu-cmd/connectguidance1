@@ -7,6 +7,7 @@ import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { shortDisplayName } from "@/lib/short-display-name";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +44,7 @@ export function StudentUserMenu({ userLabel: serverLabel }: { userLabel?: string
   }, [serverLabel]);
 
   const display = label || "…";
+  const compactLabel = display === "…" ? "…" : shortDisplayName(display);
   const avatarInitials = display === "…" ? "?" : initialsFromLabel(display);
 
   function logout() {
@@ -51,7 +53,7 @@ export function StudentUserMenu({ userLabel: serverLabel }: { userLabel?: string
         const supabase = getSupabaseBrowserClient();
         await supabase.auth.signOut();
         startTransition(() => {
-          router.push("/login");
+          router.push("/");
           router.refresh();
         });
       } catch (e) {
@@ -61,14 +63,14 @@ export function StudentUserMenu({ userLabel: serverLabel }: { userLabel?: string
   }
 
   return (
-    <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
+    <div className="flex max-w-[min(100%,20rem)] shrink-0 items-center justify-end gap-1.5 sm:max-w-none sm:gap-3">
       <Link
         href="/student/profile"
         className={cn(
-          "flex min-w-0 max-w-[12rem] items-center gap-2 rounded-lg px-2 py-1.5 outline-none transition-colors sm:max-w-[14rem]",
+          "flex min-w-0 max-w-[calc(100%-5.5rem)] items-center gap-2 rounded-lg py-1.5 pl-1 pr-1.5 outline-none transition-colors sm:max-w-[13rem] sm:px-2",
           "hover:bg-muted/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         )}
-        title="View your profile"
+        title={display === "…" ? "View your profile" : `Profile — ${display}`}
       >
         <span
           className={cn(
@@ -78,8 +80,11 @@ export function StudentUserMenu({ userLabel: serverLabel }: { userLabel?: string
         >
           {avatarInitials}
         </span>
-        <span className="text-foreground/90 max-w-[min(100%,9rem)] truncate text-sm font-medium sm:max-w-[10rem]" title={display}>
-          {display}
+        <span
+          className="text-foreground/90 min-w-0 flex-1 truncate text-left text-sm font-medium"
+          title={display === "…" ? undefined : display}
+        >
+          {compactLabel}
         </span>
       </Link>
       <Button

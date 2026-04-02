@@ -1,9 +1,10 @@
-import { ArrowLeft, Building2, Hash, Mail, UserCircle } from "lucide-react";
+import { ArrowLeft, Building2, Hash, Mail, UserCircle, BadgeInfo } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { StudentSubnav } from "@/components/StudentSubnav";
 import { StudentAppBackground } from "@/components/student/StudentAppBackground";
+import { StudentChangePasswordForm } from "@/components/student/StudentChangePasswordForm";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -19,16 +20,29 @@ export default async function StudentProfilePage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, role, student_id, department, is_active")
+    .select("full_name, role, student_id, department, is_active, user_no")
     .eq("id", user.id)
     .single();
 
   if (profile?.role !== "student") {
-    redirect(profile?.role === "admin" ? "/admin" : profile?.role === "counselor" ? "/counselor" : "/login");
+    redirect(
+      profile?.role === "admin"
+        ? "/admin"
+        : profile?.role === "counselor"
+          ? "/counselor"
+          : profile?.role === "receptionist"
+            ? "/receptionist"
+            : "/login",
+    );
   }
 
   const rows = [
     { icon: UserCircle, label: "Full name", value: profile?.full_name ?? "—" },
+    {
+      icon: BadgeInfo,
+      label: "GuidanceConnect user ID",
+      value: profile?.user_no != null ? String(profile.user_no) : "—",
+    },
     { icon: Mail, label: "Email", value: user.email ?? "—" },
     { icon: Hash, label: "Student ID", value: profile?.student_id?.trim() || "—" },
     { icon: Building2, label: "Department / program", value: profile?.department?.trim() || "—" },
@@ -75,6 +89,8 @@ export default async function StudentProfilePage() {
             ))}
           </CardContent>
         </Card>
+
+        {profile?.is_active !== false ? <StudentChangePasswordForm /> : null}
 
         {profile?.is_active === false ? (
           <Card className="border-destructive/40 bg-destructive/5">

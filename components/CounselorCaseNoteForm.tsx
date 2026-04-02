@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { saveCaseNote } from "@/app/counselor/actions";
+import { createCaseNote } from "@/actions/caseNotes";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +36,7 @@ export function CounselorCaseNoteForm({
       return;
     }
     setSubmitting(true);
-    const res = await saveCaseNote({
+    const res = await createCaseNote({
       appointmentId,
       content: content.trim(),
       isConfidential: confidential,
@@ -55,7 +55,7 @@ export function CounselorCaseNoteForm({
       <CardHeader>
         <CardTitle>Case note</CardTitle>
         <CardDescription>
-          Content is encrypted with AES-256-GCM before storage. Mark confidential to hide this note from the student
+          Content is encrypted (AES-256-CBC at rest) before storage. Mark confidential to hide this note from the student
           portal.
         </CardDescription>
       </CardHeader>

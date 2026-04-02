@@ -1,9 +1,11 @@
+import type { User } from "@supabase/supabase-js";
 import { type NextRequest, NextResponse } from "next/server";
 
 import {
   isAppRole,
   pathRequiresAdminRole,
   pathRequiresCounselorRole,
+  pathRequiresReceptionistRole,
   pathRequiresStudentRole,
   ROLE_HOME,
   isAuthPagePath,
@@ -20,24 +22,43 @@ function hasLikelySupabaseSessionCookie(request: NextRequest): boolean {
   );
 }
 
-async function profileGate(
+/**
+ * Loads role from `profiles`, falling back to `user.user_metadata.role` when the profile row is missing or invalid.
+ */
+async function resolveRole(
   supabase: Awaited<ReturnType<typeof updateSession>>["supabase"],
-  userId: string,
+  user: User,
 ): Promise<ProfileGate> {
+  let metaRole: string | null = null;
+  const meta = user.user_metadata;
+  if (meta && typeof meta === "object" && "role" in meta) {
+    const r = (meta as Record<string, unknown>).role;
+    if (typeof r === "string") metaRole = r;
+  }
+
   const { data, error } = await supabase
     .from("profiles")
     .select("role, is_active")
-    .eq("id", userId)
+    .eq("id", user.id)
     .maybeSingle();
 
-  if (error || !data?.role || !isAppRole(data.role)) {
-    return { role: null, isActive: true };
+  if (error || !data) {
+    return {
+      role: metaRole && isAppRole(metaRole) ? metaRole : null,
+      isActive: true,
+    };
   }
 
-  return { role: data.role, isActive: data.is_active !== false };
+  const profileRole = data.role && isAppRole(data.role) ? data.role : null;
+  const role = profileRole ?? (metaRole && isAppRole(metaRole) ? metaRole : null);
+
+  return { role, isActive: data.is_active !== false };
 }
 
-/** Edge request guard (auth session + role redirects). Used from root `proxy.ts`. */
+/**
+ * Edge guard: Supabase session + role-based redirects.
+ * Skips auth redirects for `/login`, `/register`, and `/api/chat` (API routes only refresh cookies here).
+ */
 export async function runAppProxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
@@ -52,7 +73,8 @@ export async function runAppProxy(request: NextRequest) {
   const needsStudent = pathRequiresStudentRole(pathname);
   const needsAdmin = pathRequiresAdminRole(pathname);
   const needsCounselor = pathRequiresCounselorRole(pathname);
-  const needsAuth = needsStudent || needsAdmin || needsCounselor;
+  const needsReceptionist = pathRequiresReceptionistRole(pathname);
+  const needsAuth = needsStudent || needsAdmin || needsCounselor || needsReceptionist;
   const publicEntry = pathname === "/" || isAuthPagePath(pathname);
   const hasSessionCookie = hasLikelySupabaseSessionCookie(request);
 
@@ -61,17 +83,14 @@ export async function runAppProxy(request: NextRequest) {
     return response;
   }
 
-  // No role-gated content: skip Supabase network (marketing pages, etc.)
   if (!needsAuth && !publicEntry) {
     return NextResponse.next();
   }
 
-  // Signed-out visitors to /, /login, /register: no session refresh needed
   if (publicEntry && !hasSessionCookie) {
     return NextResponse.next();
   }
 
-  // Protected routes without auth cookies: redirect immediately (no getUser round-trip)
   if (needsAuth && !hasSessionCookie) {
     const login = new URL("/login", request.url);
     login.searchParams.set("next", pathname);
@@ -82,7 +101,7 @@ export async function runAppProxy(request: NextRequest) {
 
   if (publicEntry) {
     if (user) {
-      const { role, isActive } = await profileGate(supabase, user.id);
+      const { role, isActive } = await resolveRole(supabase, user);
       if (!isActive) {
         const onLoginDeactivated =
           pathname === "/login" && request.nextUrl.searchParams.get("error") === "deactivated";
@@ -113,7 +132,7 @@ export async function runAppProxy(request: NextRequest) {
     return NextResponse.redirect(login);
   }
 
-  const { role, isActive } = await profileGate(supabase, user.id);
+  const { role, isActive } = await resolveRole(supabase, user);
 
   if (!isActive) {
     return NextResponse.redirect(new URL("/login?error=deactivated", request.url));
@@ -130,6 +149,10 @@ export async function runAppProxy(request: NextRequest) {
   }
 
   if (needsCounselor && role !== "counselor") {
+    return NextResponse.redirect(new URL(ROLE_HOME[role], request.url));
+  }
+
+  if (needsReceptionist && role !== "receptionist") {
     return NextResponse.redirect(new URL(ROLE_HOME[role], request.url));
   }
 

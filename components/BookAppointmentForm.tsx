@@ -3,10 +3,10 @@
 import { format } from "date-fns";
 import { CalendarIcon, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { bookAppointment } from "@/app/appointments/actions";
+import { bookAppointment, getAvailableSlots } from "@/actions/appointments";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Calendar } from "@/components/ui/calendar";
@@ -37,6 +37,17 @@ type BookAppointmentFormProps = {
   counselors: CounselorOption[];
 };
 
+/** Map server slot ISO to local HH:mm (matches `generateDayTimeSlots` hourly grid). */
+function isoToLocalHm(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function counselorMenuLabel(c: CounselorOption): string {
+  const name = c.full_name?.trim() || "Counselor";
+  return c.department?.trim() ? `${name} · ${c.department.trim()}` : name;
+}
+
 export function BookAppointmentForm({ counselors }: BookAppointmentFormProps) {
   const router = useRouter();
   const [counselorId, setCounselorId] = useState<string>("");
@@ -45,8 +56,9 @@ export function BookAppointmentForm({ counselors }: BookAppointmentFormProps) {
   const [concernType, setConcernType] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [allowedHm, setAllowedHm] = useState<Set<string> | null>(null);
 
-  const timeSlots = useMemo(() => generateDayTimeSlots(), []);
+  const timeSlots = useMemo(() => generateDayTimeSlots(9, 17, 60), []);
 
   const scheduledAtIso = useMemo(() => {
     if (!date || !timeSlot) return null;
@@ -55,6 +67,33 @@ export function BookAppointmentForm({ counselors }: BookAppointmentFormProps) {
     d.setHours(hh, mm, 0, 0);
     return d.toISOString();
   }, [date, timeSlot]);
+
+  useEffect(() => {
+    if (!counselorId || !date) {
+      startTransition(() => setAllowedHm(null));
+      return;
+    }
+    const ymd = format(date, "yyyy-MM-dd");
+    let cancelled = false;
+    void (async () => {
+      const res = await getAvailableSlots(counselorId, ymd);
+      if (cancelled) return;
+      if (!res.ok) {
+        startTransition(() => setAllowedHm(null));
+        toast.error(res.error);
+        return;
+      }
+      startTransition(() => setAllowedHm(new Set(res.slots.map(isoToLocalHm))));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [counselorId, date]);
+
+  const visibleSlots = useMemo(() => {
+    if (!allowedHm) return timeSlots;
+    return timeSlots.filter((t) => allowedHm.has(t));
+  }, [allowedHm, timeSlots]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,7 +105,7 @@ export function BookAppointmentForm({ counselors }: BookAppointmentFormProps) {
     setSubmitting(true);
     const res = await bookAppointment({
       counselorId,
-      scheduledAtIso,
+      scheduledAt: scheduledAtIso,
       concernType:
         concernType === "other"
           ? notes.trim()
@@ -88,6 +127,7 @@ export function BookAppointmentForm({ counselors }: BookAppointmentFormProps) {
     setTimeSlot("");
     setConcernType("");
     setNotes("");
+    setAllowedHm(null);
     router.refresh();
   }
 
@@ -111,13 +151,18 @@ export function BookAppointmentForm({ counselors }: BookAppointmentFormProps) {
         <Label>Counselor</Label>
         <Select value={counselorId} onValueChange={(v) => setCounselorId(v ?? "")}>
           <SelectTrigger className="w-full min-w-0" size="default">
-            <SelectValue placeholder="Select a counselor" />
+            <SelectValue placeholder="Select a counselor">
+              {(val) => {
+                if (val == null || val === "") return null;
+                const row = counselors.find((c) => c.id === val);
+                return row ? counselorMenuLabel(row) : "Select a counselor";
+              }}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {counselors.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.full_name}
-                {c.department ? ` · ${c.department}` : ""}
+              <SelectItem key={c.id} value={c.id} label={counselorMenuLabel(c)}>
+                {counselorMenuLabel(c)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -143,7 +188,10 @@ export function BookAppointmentForm({ counselors }: BookAppointmentFormProps) {
               <Calendar
                 mode="single"
                 selected={date}
-                onSelect={setDate}
+                onSelect={(d) => {
+                  setDate(d);
+                  setTimeSlot("");
+                }}
                 disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
                 initialFocus
               />
@@ -152,16 +200,24 @@ export function BookAppointmentForm({ counselors }: BookAppointmentFormProps) {
         </div>
         <div className="space-y-2">
           <Label>Time</Label>
-          <Select value={timeSlot} onValueChange={(v) => setTimeSlot(v ?? "")}>
+          <Select
+            value={timeSlot}
+            onValueChange={(v) => setTimeSlot(v ?? "")}
+            disabled={!counselorId || !date}
+          >
             <SelectTrigger className="w-full min-w-0">
               <SelectValue placeholder="Select a time slot" />
             </SelectTrigger>
             <SelectContent>
-              {timeSlots.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {format(new Date(`2000-01-01T${t}:00`), "h:mm a")}
-                </SelectItem>
-              ))}
+              {visibleSlots.length === 0 ? (
+                <div className="text-muted-foreground p-2 text-sm">No open slots this day.</div>
+              ) : (
+                visibleSlots.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {format(new Date(`2000-01-01T${t}:00`), "h:mm a")}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>

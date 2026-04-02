@@ -6,6 +6,7 @@
  * Usage:
  *   node scripts/seed-staff.mjs --email admin@school.edu --password '...' --role admin --name "Ada Admin"
  *   node scripts/seed-staff.mjs --email c1@school.edu --password '...' --role counselor
+ *   node scripts/seed-staff.mjs --email frontdesk@school.edu --password '...' --role receptionist --name "Front Desk"
  *   node scripts/seed-staff.mjs --email you@school.edu --password '...' --role admin --confirm-email
  *
  * Requires NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (.env.local is auto-loaded from cwd).
@@ -15,7 +16,7 @@ import { createClient } from "@supabase/supabase-js";
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 
-const STAFF_ROLES = ["admin", "counselor"];
+const STAFF_ROLES = ["admin", "counselor", "receptionist"];
 
 function loadEnvLocal() {
   const p = resolve(process.cwd(), ".env.local");
@@ -89,10 +90,10 @@ async function findUserIdByEmail(admin, email) {
 }
 
 function printHelp() {
-  console.log(`GuidanceConnect — seed staff (admin / counselor)
+  console.log(`GuidanceConnect — seed staff (admin / counselor / receptionist)
 
 Usage:
-  node scripts/seed-staff.mjs --email <email> --password <password> [--role admin|counselor] [--name "Full name"] [--no-email-confirm] [--confirm-email]
+  node scripts/seed-staff.mjs --email <email> --password <password> [--role admin|counselor|receptionist] [--name "Full name"] [--no-email-confirm] [--confirm-email]
 
 Environment:
   NEXT_PUBLIC_SUPABASE_URL

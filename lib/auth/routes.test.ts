@@ -4,6 +4,7 @@ import {
   isAppRole,
   pathRequiresAdminRole,
   pathRequiresCounselorRole,
+  pathRequiresReceptionistRole,
   pathRequiresStudentRole,
 } from "@/lib/auth/routes";
 
@@ -12,6 +13,7 @@ describe("auth routes helpers", () => {
     expect(isAppRole("admin")).toBe(true);
     expect(isAppRole("counselor")).toBe(true);
     expect(isAppRole("student")).toBe(true);
+    expect(isAppRole("receptionist")).toBe(true);
     expect(isAppRole("superuser")).toBe(false);
     expect(isAppRole(null)).toBe(false);
   });
@@ -35,5 +37,11 @@ describe("auth routes helpers", () => {
     expect(pathRequiresCounselorRole("/counselor")).toBe(true);
     expect(pathRequiresCounselorRole("/counselor/case-notes/123")).toBe(true);
     expect(pathRequiresCounselorRole("/counselors")).toBe(false);
+  });
+
+  it("pathRequiresReceptionistRole", () => {
+    expect(pathRequiresReceptionistRole("/receptionist")).toBe(true);
+    expect(pathRequiresReceptionistRole("/receptionist/history")).toBe(true);
+    expect(pathRequiresReceptionistRole("/admin")).toBe(false);
   });
 });

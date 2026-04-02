@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireAdmin } from "@/lib/supabase/admin-guard";
+import { getSupabaseServiceRoleClient } from "@/lib/supabase/service-role";
 
-const roleSchema = z.enum(["admin", "counselor", "student"]);
+const roleSchema = z.enum(["admin", "counselor", "receptionist", "student"]);
 
 export async function adminUpdateUserRole(targetUserId: string, role: z.infer<typeof roleSchema>) {
   const id = z.string().uuid().safeParse(targetUserId);
@@ -14,14 +15,24 @@ export async function adminUpdateUserRole(targetUserId: string, role: z.infer<ty
     return { ok: false as const, error: "Invalid input." };
   }
 
-  const { supabase, user } = await requireAdmin();
+  const { user } = await requireAdmin();
 
-  const { data: target } = await supabase.from("profiles").select("role").eq("id", id.data).maybeSingle();
+  const service = getSupabaseServiceRoleClient();
+  if (!service) {
+    return { ok: false as const, error: "Server is missing SUPABASE_SERVICE_ROLE_KEY." };
+  }
 
+  const { data: target, error: targetErr } = await service
+    .from("profiles")
+    .select("role")
+    .eq("id", id.data)
+    .maybeSingle();
+
+  if (targetErr) return { ok: false as const, error: targetErr.message };
   if (!target) return { ok: false as const, error: "User not found." };
 
   if (target.role === "admin" && roleParse.data !== "admin") {
-    const { count, error: cErr } = await supabase
+    const { count, error: cErr } = await service
       .from("profiles")
       .select("*", { count: "exact", head: true })
       .eq("role", "admin");
@@ -36,7 +47,7 @@ export async function adminUpdateUserRole(targetUserId: string, role: z.infer<ty
     return { ok: false as const, error: "You cannot demote your own admin account here." };
   }
 
-  const { error } = await supabase.from("profiles").update({ role: roleParse.data }).eq("id", id.data);
+  const { error } = await service.from("profiles").update({ role: roleParse.data }).eq("id", id.data);
 
   if (error) return { ok: false as const, error: error.message };
 
@@ -49,18 +60,28 @@ export async function adminSetUserActive(targetUserId: string, isActive: boolean
   const id = z.string().uuid().safeParse(targetUserId);
   if (!id.success) return { ok: false as const, error: "Invalid user." };
 
-  const { supabase, user } = await requireAdmin();
+  const { user } = await requireAdmin();
 
   if (id.data === user.id && !isActive) {
     return { ok: false as const, error: "You cannot deactivate your own account." };
   }
 
-  const { data: target } = await supabase.from("profiles").select("role, is_active").eq("id", id.data).maybeSingle();
+  const service = getSupabaseServiceRoleClient();
+  if (!service) {
+    return { ok: false as const, error: "Server is missing SUPABASE_SERVICE_ROLE_KEY." };
+  }
 
+  const { data: target, error: targetErr } = await service
+    .from("profiles")
+    .select("role, is_active")
+    .eq("id", id.data)
+    .maybeSingle();
+
+  if (targetErr) return { ok: false as const, error: targetErr.message };
   if (!target) return { ok: false as const, error: "User not found." };
 
   if (target.role === "admin" && !isActive) {
-    const { count, error: cErr } = await supabase
+    const { count, error: cErr } = await service
       .from("profiles")
       .select("*", { count: "exact", head: true })
       .eq("role", "admin")
@@ -72,7 +93,7 @@ export async function adminSetUserActive(targetUserId: string, isActive: boolean
     }
   }
 
-  const { error } = await supabase.from("profiles").update({ is_active: isActive }).eq("id", id.data);
+  const { error } = await service.from("profiles").update({ is_active: isActive }).eq("id", id.data);
 
   if (error) return { ok: false as const, error: error.message };
 

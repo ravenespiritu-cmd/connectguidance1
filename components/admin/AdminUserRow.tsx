@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 
 export type AdminUserRowData = {
   id: string;
+  /** Sequential GC user number (database-assigned). */
+  user_no: number | null;
   full_name: string;
   student_id: string | null;
   department: string | null;
@@ -26,7 +28,7 @@ export type AdminUserRowData = {
   created_at: string;
 };
 
-const roles = ["admin", "counselor", "student"] as const;
+const roles = ["admin", "counselor", "receptionist", "student"] as const;
 
 export function AdminUserRow({ user, currentUserId }: { user: AdminUserRowData; currentUserId: string }) {
   const router = useRouter();
@@ -67,6 +69,9 @@ export function AdminUserRow({ user, currentUserId }: { user: AdminUserRowData; 
 
   return (
     <TableRow className={cn(!active && "opacity-70")}>
+      <TableCell className="text-muted-foreground w-[4.5rem] tabular-nums text-sm">
+        {user.user_no != null ? user.user_no : "—"}
+      </TableCell>
       <TableCell className="font-medium">{user.full_name}</TableCell>
       <TableCell className="text-muted-foreground text-sm">{user.student_id ?? "—"}</TableCell>
       <TableCell className="text-muted-foreground max-w-[140px] truncate text-sm">{user.department ?? "—"}</TableCell>

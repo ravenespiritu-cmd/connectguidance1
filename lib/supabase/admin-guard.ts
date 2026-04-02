@@ -12,13 +12,13 @@ export async function requireAdmin() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, is_active")
+    .select("role, is_active, full_name, user_no")
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "admin" || profile.is_active === false) {
+  if (!profile || profile.role !== "admin" || profile.is_active === false) {
     redirect("/login");
   }
 
-  return { supabase, user };
+  return { supabase, user, profile };
 }

@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { StickyNote } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { decryptCaseNoteContent } from "@/lib/encryption";
+import { decrypt } from "@/lib/encryption";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 type AppointmentEmbed = { scheduled_at: string };
@@ -81,16 +81,13 @@ export async function StudentCaseHistory() {
     );
   }
 
-  const decrypted = await Promise.all(
-    list.map(async (row) => {
-      try {
-        const text = await decryptCaseNoteContent(row.content);
-        return { ...row, plain: text };
-      } catch {
-        return { ...row, plain: null as string | null };
-      }
-    }),
-  );
+  const decrypted = list.map((row) => {
+    try {
+      return { ...row, plain: decrypt(row.content) };
+    } catch {
+      return { ...row, plain: null as string | null };
+    }
+  });
 
   return (
     <Card className="border-amber-500/15">

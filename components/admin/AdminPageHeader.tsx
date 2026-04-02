@@ -11,7 +11,7 @@ export function AdminPageHeader({ title, description, children, className }: Pro
   return (
     <div
       className={cn(
-        "relative flex flex-col gap-4 border-b border-border/50 pb-8 sm:flex-row sm:items-end sm:justify-between",
+        "relative flex flex-col gap-4 rounded-xl border border-border/60 bg-card/40 p-5 pb-6 shadow-sm sm:flex-row sm:items-end sm:justify-between",
         className,
       )}
     >

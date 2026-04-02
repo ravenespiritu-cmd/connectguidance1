@@ -9,18 +9,20 @@ import { buildConcernBreakdown, buildWeeklyAppointmentSeries, monthRangeIso } fr
 import { requireAdmin } from "@/lib/supabase/admin-guard";
 
 export default async function AdminDashboardPage() {
-  const { supabase } = await requireAdmin();
+  const { supabase, user, profile } = await requireAdmin();
 
   const { startIso, endIso } = monthRangeIso();
 
   const [
     { count: studentCount },
+    { count: counselorCount },
     { count: apptMonthCount },
     { count: completedMonthCount },
     { data: apptsEightWeeks },
     { data: apptsConcerns },
   ] = await Promise.all([
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "student"),
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "counselor"),
     supabase.from("appointments").select("*", { count: "exact", head: true }).gte("scheduled_at", startIso).lte("scheduled_at", endIso),
     supabase
       .from("appointments")
@@ -49,7 +51,7 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="from-background via-muted/15 to-background dark:via-muted/8 min-h-full flex-1 bg-gradient-to-b">
-      <AdminSubnav />
+      <AdminSubnav userLabel={profile.full_name} />
       <div className="mx-auto max-w-6xl space-y-10 px-4 py-8 sm:px-6">
         <AdminPageHeader
           title="Admin overview"
@@ -62,6 +64,7 @@ export default async function AdminDashboardPage() {
 
         <AdminKpiCards
           totalStudents={studentCount ?? 0}
+          totalCounselors={counselorCount ?? 0}
           appointmentsThisMonth={totalMonth}
           completedThisMonth={completed}
           completionRatePct={completionRatePct}

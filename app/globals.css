@@ -127,4 +127,10 @@
   html {
     @apply font-sans;
   }
+  /* Native <select> dropdowns: avoid unreadable option text when the list uses a light panel in dark UI (Chrome/Opera/Edge). */
+  .dark select option,
+  .dark select optgroup {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
 }

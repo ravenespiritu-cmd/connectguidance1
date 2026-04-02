@@ -21,7 +21,15 @@ export default async function ChatbotPage() {
   const { data: profile } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).single();
 
   if (profile?.role !== "student") {
-    redirect(profile?.role === "admin" ? "/admin" : profile?.role === "counselor" ? "/counselor" : "/login");
+    redirect(
+      profile?.role === "admin"
+        ? "/admin"
+        : profile?.role === "counselor"
+          ? "/counselor"
+          : profile?.role === "receptionist"
+            ? "/receptionist"
+            : "/login",
+    );
   }
 
   return (
@@ -82,7 +90,7 @@ export default async function ChatbotPage() {
           </Card>
         </div>
       </div>
-      <ChatbotWidget />
+      <ChatbotWidget studentId={user.id} />
     </StudentAppBackground>
   );
 }

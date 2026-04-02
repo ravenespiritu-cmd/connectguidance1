@@ -1,10 +1,11 @@
-import { CalendarCheck, GraduationCap, TrendingUp } from "lucide-react";
+import { CalendarCheck, GraduationCap, HeartHandshake, TrendingUp } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 type Props = {
   totalStudents: number;
+  totalCounselors: number;
   appointmentsThisMonth: number;
   completedThisMonth: number;
   completionRatePct: number;
@@ -15,6 +16,7 @@ const iconWrap =
 
 export function AdminKpiCards({
   totalStudents,
+  totalCounselors,
   appointmentsThisMonth,
   completedThisMonth,
   completionRatePct,
@@ -22,7 +24,7 @@ export function AdminKpiCards({
   const noAppts = appointmentsThisMonth === 0;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Card
         className={cn(
           "border-t-4 border-t-blue-500/70 shadow-sm transition-shadow hover:shadow-md dark:border-t-blue-400/60",
@@ -46,6 +48,33 @@ export function AdminKpiCards({
             <span className="text-amber-600/90 dark:text-amber-400/90">No student profiles yet — registrations will appear here.</span>
           ) : (
             <>Profiles with role &quot;student&quot;.</>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card
+        className={cn(
+          "border-t-4 border-t-teal-500/70 shadow-sm transition-shadow hover:shadow-md dark:border-t-teal-400/60",
+        )}
+      >
+        <CardHeader className="pb-2">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <CardDescription>Total counselors</CardDescription>
+              <CardTitle className="text-3xl font-semibold tabular-nums text-teal-700 dark:text-teal-300 mt-1">
+                {totalCounselors}
+              </CardTitle>
+            </div>
+            <div className={cn(iconWrap, "bg-teal-500/15 text-teal-600 dark:text-teal-300")}>
+              <HeartHandshake aria-hidden />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="text-muted-foreground text-xs">
+          {totalCounselors === 0 ? (
+            <span className="text-amber-600/90 dark:text-amber-400/90">No counselor profiles yet — assign the role in Users.</span>
+          ) : (
+            <>Profiles with role &quot;counselor&quot;.</>
           )}
         </CardContent>
       </Card>
@@ -92,9 +121,19 @@ export function AdminKpiCards({
             "Complete at least one appointment this month to see a rate."
           ) : (
             <>
-              Completed ({completedThisMonth}) ÷ all statuses this month ({appointmentsThisMonth}).
+              Completed <span className="font-medium text-foreground">{completedThisMonth}</span> of{" "}
+              <span className="font-medium text-foreground">{appointmentsThisMonth}</span> booked sessions.
             </>
           )}
+
+          <div className="mt-3">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted/60" aria-hidden>
+              <div
+                className="h-full rounded-full bg-emerald-500/85 transition-[width]"
+                style={{ width: noAppts ? "0%" : `${completionRatePct}%` }}
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -13,8 +13,6 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ROLE_HOME, type AppRole } from "@/lib/auth/routes";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 const schema = z.object({
@@ -24,8 +22,19 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-function isAppRole(value: string | undefined): value is AppRole {
-  return value === "admin" || value === "counselor" || value === "student";
+type SignInOkPayload = { ok: true; destination: string };
+type SignInErrReason = "deactivated" | "no_profile" | "invalid_credentials";
+type SignInErrPayload = { ok: false; reason: SignInErrReason };
+type SignInPayload = SignInOkPayload | SignInErrPayload;
+
+function isSignInPayload(value: unknown): value is SignInPayload {
+  if (!value || typeof value !== "object") return false;
+  const v = value as { ok?: unknown; destination?: unknown; reason?: unknown };
+  if (v.ok === true) return typeof v.destination === "string";
+  if (v.ok === false) {
+    return v.reason === "deactivated" || v.reason === "no_profile" || v.reason === "invalid_credentials";
+  }
+  return false;
 }
 
 export function LoginForm() {
@@ -41,56 +50,42 @@ export function LoginForm() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   const onSubmit = handleSubmit(async ({ email, password }) => {
-    let supabase;
+    let serverDestination: string | undefined;
     try {
-      supabase = getSupabaseBrowserClient();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Supabase is not configured correctly.");
-      return;
-    }
-    const { data: signInData, error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      const msg = error.message;
-      if (msg === "Invalid API key") {
-        toast.error(
-          "Supabase rejected the anon key. Confirm NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local match the same project (Dashboard → Settings → API), then restart npm run dev.",
-        );
-      } else {
-        toast.error(msg);
+      const res = await fetch("/api/auth/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const payloadUnknown = await res.json().catch(() => null);
+      if (!res.ok || !isSignInPayload(payloadUnknown)) {
+        toast.error("Sign-in failed. Please try again.");
+        return;
       }
-      return;
-    }
 
-    const userId = signInData.user?.id;
-    if (!userId) {
-      toast.error("Sign-in succeeded but no user id was returned. Try again.");
-      await supabase.auth.signOut();
-      return;
-    }
+      if (payloadUnknown.ok === false) {
+        if (payloadUnknown.reason === "deactivated") {
+          toast.error("This account has been deactivated.");
+          router.replace("/login?error=deactivated");
+          return;
+        }
+        if (payloadUnknown.reason === "no_profile") {
+          toast.error("Your account has no profile. Contact an administrator.");
+          router.replace("/login?error=no_profile");
+          return;
+        }
+        toast.error("Invalid email or password.");
+        return;
+      }
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role, is_active")
-      .eq("id", userId)
-      .maybeSingle();
-
-    if (profileError || !profile?.role || !isAppRole(profile.role)) {
-      toast.error("Your account has no profile. Contact an administrator.");
-      await supabase.auth.signOut();
-      return;
-    }
-
-    if (profile.is_active === false) {
-      toast.error("This account has been deactivated.");
-      await supabase.auth.signOut();
+      serverDestination = payloadUnknown.destination;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to sign in.");
       return;
     }
 
     const destination =
-      nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//")
-        ? nextPath
-        : ROLE_HOME[profile.role];
+      nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : serverDestination ?? "/";
 
     toast.success("Signed in");
     router.refresh();
@@ -128,12 +123,12 @@ export function LoginForm() {
             className="mt-2"
             onClick={async () => {
               try {
-                const supabase = getSupabaseBrowserClient();
-                await supabase.auth.signOut();
+                await fetch("/api/auth/signout", { method: "POST" });
                 toast.message("Signed out");
-                router.replace("/login");
+                router.replace("/");
               } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Supabase is not configured correctly.");
+                toast.error(e instanceof Error ? e.message : "Failed to sign out.");
+                router.replace("/");
               }
             }}
           >
@@ -151,12 +146,12 @@ export function LoginForm() {
             className="mt-2"
             onClick={async () => {
               try {
-                const supabase = getSupabaseBrowserClient();
-                await supabase.auth.signOut();
+                await fetch("/api/auth/signout", { method: "POST" });
                 toast.message("Signed out");
-                router.replace("/login");
+                router.replace("/");
               } catch (e) {
-                toast.error(e instanceof Error ? e.message : "Supabase is not configured correctly.");
+                toast.error(e instanceof Error ? e.message : "Failed to sign out.");
+                router.replace("/");
               }
             }}
           >

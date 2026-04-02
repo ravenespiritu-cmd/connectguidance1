@@ -8,7 +8,7 @@ import { CounselorSubnav } from "@/components/CounselorSubnav";
 import { AppointmentStatusBadge } from "@/components/AppointmentStatusBadge";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { decryptCaseNoteContent } from "@/lib/encryption";
+import { decrypt } from "@/lib/encryption";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
@@ -28,10 +28,18 @@ export default async function CounselorCaseNotePage({ params }: PageProps) {
 
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const { data: profile } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).single();
 
   if (profile?.role !== "counselor") {
-    redirect(profile?.role === "admin" ? "/admin" : profile?.role === "student" ? "/student" : "/login");
+    redirect(
+      profile?.role === "admin"
+        ? "/admin"
+        : profile?.role === "student"
+          ? "/student"
+          : profile?.role === "receptionist"
+            ? "/receptionist"
+            : "/login",
+    );
   }
 
   const { data: appt, error: apptError } = await supabase
@@ -59,18 +67,20 @@ export default async function CounselorCaseNotePage({ params }: PageProps) {
   let initialContent = "";
   if (note?.content) {
     try {
-      initialContent = await decryptCaseNoteContent(note.content);
+      initialContent = decrypt(note.content);
     } catch {
       initialContent =
-        "[Could not decrypt this note. Ensure CASE_NOTES_ENCRYPTION_KEY matches the key used when the note was saved.]";
+        "[Could not decrypt this note. Ensure ENCRYPTION_KEY (64 hex chars) matches the key used when the note was saved.]";
     }
   }
 
   const formKey = note?.updated_at ?? "new";
 
+  const userLabel = profile?.full_name ?? user.email ?? null;
+
   return (
     <div className="bg-muted/20 min-h-full flex-1">
-      <CounselorSubnav />
+      <CounselorSubnav userLabel={userLabel} />
       <div className="mx-auto max-w-3xl space-y-8 px-4 py-8 sm:px-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>

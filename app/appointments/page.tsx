@@ -32,10 +32,18 @@ export default async function AppointmentsPage() {
   const { data: profile } = await supabase.from("profiles").select("role, full_name").eq("id", user.id).single();
 
   if (profile?.role !== "student") {
-    redirect(profile?.role === "admin" ? "/admin" : profile?.role === "counselor" ? "/counselor" : "/login");
+    redirect(
+      profile?.role === "admin"
+        ? "/admin"
+        : profile?.role === "counselor"
+          ? "/counselor"
+          : profile?.role === "receptionist"
+            ? "/receptionist"
+            : "/login",
+    );
   }
 
-  const [{ data: appointmentRows }, { data: counselors }] = await Promise.all([
+  const [{ data: appointmentRows }, { data: counselorRows }] = await Promise.all([
     supabase
       .from("appointments")
       .select("id, scheduled_at, status, concern_type, notes, counselor_id")
@@ -43,13 +51,17 @@ export default async function AppointmentsPage() {
       .order("scheduled_at", { ascending: true }),
     supabase
       .from("profiles")
-      .select("id, full_name, department")
+      .select("id, full_name, department, is_active")
       .eq("role", "counselor")
       .order("full_name", { ascending: true }),
   ]);
 
   const appointments = appointmentRows ?? [];
-  const counselorMap = Object.fromEntries((counselors ?? []).map((c) => [c.id, c]));
+  const counselorsAll = counselorRows ?? [];
+  const counselorMap = Object.fromEntries(counselorsAll.map((c) => [c.id, c]));
+  const counselorsForBooking = counselorsAll
+    .filter((c) => c.is_active !== false)
+    .map(({ id, full_name, department }) => ({ id, full_name, department }));
 
   const now = new Date().toISOString();
   const upcoming = appointments.filter((a) => a.scheduled_at >= now && a.status !== "cancelled");
@@ -86,7 +98,7 @@ export default async function AppointmentsPage() {
             <CardDescription>Choose a counselor, date, and time. Requests stay pending until a counselor confirms.</CardDescription>
           </CardHeader>
           <CardContent>
-            <BookAppointmentForm counselors={counselors ?? []} />
+            <BookAppointmentForm counselors={counselorsForBooking} />
           </CardContent>
         </Card>
 

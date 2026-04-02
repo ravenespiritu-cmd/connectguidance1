@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 /** Programs shown on student registration; value stored on profile metadata. */
@@ -53,6 +52,22 @@ const schema = z.object({
 
 type FormValues = z.input<typeof schema>;
 
+type SignUpOkPayload = { ok: true; message: string; hasSession: boolean };
+type SignUpErrPayload = { ok: false; message: string };
+type SignUpPayload = SignUpOkPayload | SignUpErrPayload;
+
+function isSignUpPayload(value: unknown): value is SignUpPayload {
+  if (!value || typeof value !== "object") return false;
+  const v = value as { ok?: unknown; message?: unknown; hasSession?: unknown };
+  if (v.ok === true) {
+    return typeof v.message === "string" && typeof v.hasSession === "boolean";
+  }
+  if (v.ok === false) {
+    return typeof v.message === "string";
+  }
+  return false;
+}
+
 export function RegisterForm() {
   const router = useRouter();
 
@@ -74,54 +89,43 @@ export function RegisterForm() {
 
   const onSubmit = handleSubmit(
     async ({ email, password, full_name, student_id, department }) => {
-      let supabase;
       try {
-        supabase = getSupabaseBrowserClient();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Supabase is not configured correctly.");
-        return;
-      }
+        const res = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, full_name, student_id, department }),
+        });
 
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name,
-            student_id,
-            department,
-          },
-        },
-      });
-
-      if (signUpError) {
-        const msg = signUpError.message;
-        if (msg === "Invalid API key") {
-          toast.error(
-            "Supabase rejected the anon key. Confirm NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local match the same project, then restart npm run dev.",
-          );
-        } else {
-          toast.error(msg);
+        const payloadUnknown = await res.json().catch(() => null);
+        if (!res.ok || !isSignUpPayload(payloadUnknown)) {
+          toast.error("Sign up failed. Please try again.");
+          return;
         }
-        return;
-      }
 
-      const user = signUpData.user;
-      if (!user) {
-        toast.message("Check your email to confirm your account, then sign in.");
+        if (payloadUnknown.ok === false) {
+          const msg = payloadUnknown.message;
+          if (msg === "Invalid API key") {
+            toast.error(
+              "Supabase rejected the anon key. Confirm NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local match the same project, then restart npm run dev.",
+            );
+          } else {
+            toast.error(msg);
+          }
+          return;
+        }
+
+        if (payloadUnknown.hasSession) {
+          toast.success(payloadUnknown.message ?? "Welcome! Your student account is ready.");
+          router.refresh();
+          router.push("/student");
+          return;
+        }
+
+        toast.message(payloadUnknown.message ?? "Confirm your email, then sign in.");
         router.push("/login");
-        return;
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to sign up.");
       }
-
-      if (signUpData.session) {
-        toast.success("Welcome! Your student account is ready.");
-        router.refresh();
-        router.push("/student");
-        return;
-      }
-
-      toast.message("Confirm your email, then sign in.");
-      router.push("/login");
     },
   );
 
@@ -176,7 +180,7 @@ export function RegisterForm() {
                     aria-hidden
                   />
                   <Select
-                    value={field.value ? field.value : undefined}
+                    value={field.value}
                     onValueChange={(v) => field.onChange(v ?? "")}
                     disabled={isSubmitting}
                   >

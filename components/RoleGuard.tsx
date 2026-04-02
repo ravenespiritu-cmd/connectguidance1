@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
-type AllowedRole = "admin" | "counselor" | "student";
+type AllowedRole = "admin" | "counselor" | "receptionist" | "student";
 
 type RoleGuardProps = {
   allowed: AllowedRole[];
