@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { hourlySlotDates, localDayBounds } from "@/lib/appointment-slots";
+import { hourlySlotDatesForDay, isValidTimeZone, localDayBounds } from "@/lib/appointment-slots";
 import { logAction } from "@/lib/audit";
 import { createServerClient } from "@/lib/supabase";
 
@@ -15,11 +15,13 @@ const counselorStatusSchema = z.enum(["confirmed", "cancelled", "completed"]);
 export async function getAvailableSlots(
   counselorId: string,
   date: string,
+  timeZone: string,
 ): Promise<{ ok: true; slots: string[] } | { ok: false; error: string }> {
   const idParse = z.string().uuid().safeParse(counselorId);
   const dateParse = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).safeParse(date);
-  if (!idParse.success || !dateParse.success) {
-    return { ok: false, error: "Invalid counselor or date." };
+  const tz = typeof timeZone === "string" ? timeZone.trim() : "";
+  if (!idParse.success || !dateParse.success || !isValidTimeZone(tz)) {
+    return { ok: false, error: "Invalid counselor, date, or time zone." };
   }
 
   try {
@@ -39,7 +41,7 @@ export async function getAvailableSlots(
       return { ok: false, error: "Only active students can view availability." };
     }
 
-    const bounds = localDayBounds(dateParse.data);
+    const bounds = localDayBounds(dateParse.data, tz);
     if ("error" in bounds) return { ok: false, error: bounds.error };
 
     const { data: booked, error: bookedErr } = await supabase
@@ -61,7 +63,7 @@ export async function getAvailableSlots(
       }),
     );
 
-    const slotDates = hourlySlotDates(bounds.start);
+    const slotDates = hourlySlotDatesForDay(dateParse.data, tz);
     const slots = slotDates
       .filter((dt) => !taken.has(Math.floor(dt.getTime() / 60000)))
       .map((dt) => dt.toISOString());

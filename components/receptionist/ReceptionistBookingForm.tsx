@@ -131,7 +131,11 @@ export function ReceptionistBookingForm() {
     const forCounselorId = counselorSelection === AUTO_COUNSELOR ? null : counselorSelection;
     let cancelled = false;
     void (async () => {
-      const res = await getReceptionBookableTimeSlots(ymd, forCounselorId);
+      const res = await getReceptionBookableTimeSlots(
+        ymd,
+        forCounselorId,
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
+      );
       if (cancelled) return;
       if (!res.ok) {
         startTransition(() => setBookableHm(null));

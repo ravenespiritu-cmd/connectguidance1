@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { hourlySlotDates, localDayBounds } from "@/lib/appointment-slots";
+import {
+  formatSlotHmInTimeZone,
+  hourlySlotDatesForDay,
+  isValidTimeZone,
+  localDayBounds,
+} from "@/lib/appointment-slots";
 import { logAction } from "@/lib/audit";
 import { createServerClient } from "@/lib/supabase";
 
@@ -116,10 +121,12 @@ export async function searchStudentsForReception(
 export async function getReceptionBookableTimeSlots(
   dateYmd: string,
   specificCounselorId?: string | null,
+  timeZone?: string | null,
 ): Promise<{ ok: true; slots: string[] } | { ok: false; error: string }> {
   const dateParse = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).safeParse(dateYmd);
-  if (!dateParse.success) {
-    return { ok: false, error: "Invalid date." };
+  const tz = typeof timeZone === "string" ? timeZone.trim() : "";
+  if (!dateParse.success || !isValidTimeZone(tz)) {
+    return { ok: false, error: "Invalid date or time zone." };
   }
 
   const counselorPick =
@@ -147,7 +154,7 @@ export async function getReceptionBookableTimeSlots(
       return { ok: false, error: "Only reception staff can load availability." };
     }
 
-    const bounds = localDayBounds(dateParse.data);
+    const bounds = localDayBounds(dateParse.data, tz);
     if ("error" in bounds) return { ok: false, error: bounds.error };
 
     const [{ data: counselors }, { data: booked }] = await Promise.all([
@@ -181,15 +188,13 @@ export async function getReceptionBookableTimeSlots(
       (booked ?? []).map((r) => `${r.counselor_id}:${Math.floor(new Date(r.scheduled_at).getTime() / 60000)}`),
     );
 
-    const slotDates = hourlySlotDates(bounds.start);
+    const slotDates = hourlySlotDatesForDay(dateParse.data, tz);
     const slots: string[] = [];
     for (const dt of slotDates) {
       const minute = Math.floor(dt.getTime() / 60000);
       const anyFree = counselorIds.some((cid) => !taken.has(`${cid}:${minute}`));
       if (anyFree) {
-        slots.push(
-          `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`,
-        );
+        slots.push(formatSlotHmInTimeZone(dt, tz));
       }
     }
 

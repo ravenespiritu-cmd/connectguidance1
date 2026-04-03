@@ -76,7 +76,8 @@ export function BookAppointmentForm({ counselors }: BookAppointmentFormProps) {
     const ymd = format(date, "yyyy-MM-dd");
     let cancelled = false;
     void (async () => {
-      const res = await getAvailableSlots(counselorId, ymd);
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await getAvailableSlots(counselorId, ymd, tz);
       if (cancelled) return;
       if (!res.ok) {
         startTransition(() => setAllowedHm(null));
