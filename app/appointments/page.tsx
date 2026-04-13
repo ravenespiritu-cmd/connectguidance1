@@ -1,10 +1,10 @@
-import { format } from "date-fns";
 import { CalendarClock, History } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { BookAppointmentForm } from "@/components/BookAppointmentForm";
 import { AppointmentStatusBadge } from "@/components/AppointmentStatusBadge";
+import { LocalDateTimeText } from "@/components/LocalDateTimeText";
 import { StudentAppointmentCancelButton } from "@/components/StudentAppointmentCancelButton";
 import { StudentSubnav } from "@/components/StudentSubnav";
 import { StudentAppBackground } from "@/components/student/StudentAppBackground";
@@ -137,7 +137,7 @@ export default async function AppointmentsPage() {
                       return (
                         <TableRow key={a.id}>
                           <TableCell className="whitespace-nowrap font-medium">
-                            {format(new Date(a.scheduled_at), "MMM d, yyyy · h:mm a")}
+                            <LocalDateTimeText iso={a.scheduled_at} pattern="MMM d, yyyy · h:mm a" />
                           </TableCell>
                           <TableCell>{c?.full_name ?? "—"}</TableCell>
                           <TableCell className="max-w-[200px] truncate">{a.concern_type}</TableCell>
@@ -190,7 +190,7 @@ export default async function AppointmentsPage() {
                       return (
                         <TableRow key={a.id}>
                           <TableCell className="whitespace-nowrap">
-                            {format(new Date(a.scheduled_at), "MMM d, yyyy · h:mm a")}
+                            <LocalDateTimeText iso={a.scheduled_at} pattern="MMM d, yyyy · h:mm a" />
                           </TableCell>
                           <TableCell>{c?.full_name ?? "—"}</TableCell>
                           <TableCell className="max-w-[240px] truncate">{a.concern_type}</TableCell>

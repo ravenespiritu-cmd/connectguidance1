@@ -30,6 +30,22 @@ export function localDayBounds(
   return { start, end };
 }
 
+/**
+ * UTC instant for a calendar wall time in `timeZone` (same mapping as `hourlySlotDatesForDay`).
+ * Prefer this over `new Date(d).setHours(...)` so booking matches availability slots.
+ */
+export function instantFromYmdHm(dateYmd: string, hm: string, timeZone: string): Date | null {
+  const hmParts = hm.split(":").map((p) => Number(p));
+  if (hmParts.length !== 2 || hmParts.some((n) => Number.isNaN(n))) return null;
+  const [hh, mm] = hmParts;
+  const parts = dateYmd.split("-").map((p) => Number(p));
+  if (parts.length !== 3 || parts.some((n) => Number.isNaN(n))) return null;
+  const [yy, mo, dd] = parts;
+  const tz = timeZone.trim();
+  if (!isValidTimeZone(tz)) return null;
+  return fromZonedTime(new Date(yy, mo - 1, dd, hh, mm, 0, 0), tz);
+}
+
 /** Hourly slots 09:00–16:00 wall time in `timeZone` for `dateYmd`. */
 export function hourlySlotDatesForDay(dateYmd: string, timeZone: string): Date[] {
   const parts = dateYmd.split("-").map((p) => Number(p));

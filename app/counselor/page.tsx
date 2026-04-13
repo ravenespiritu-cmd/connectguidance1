@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { CounselorAppointmentActions } from "@/components/CounselorAppointmentActions";
 import { CounselorSubnav } from "@/components/CounselorSubnav";
 import { AppointmentStatusBadge } from "@/components/AppointmentStatusBadge";
+import { LocalDateTimeText } from "@/components/LocalDateTimeText";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -217,7 +218,7 @@ export default async function CounselorDashboardPage() {
                     {later.map((a) => (
                       <TableRow key={a.id}>
                         <TableCell className="align-top whitespace-normal font-medium">
-                          {format(new Date(a.scheduled_at), "EEE, MMM d · h:mm a")}
+                          <LocalDateTimeText iso={a.scheduled_at} pattern="EEE, MMM d · h:mm a" />
                         </TableCell>
                         <TableCell className="align-top">
                           <StudentCell s={studentMap[a.student_id]} />
@@ -264,7 +265,7 @@ export default async function CounselorDashboardPage() {
                     {[...past].reverse().map((a) => (
                       <TableRow key={a.id}>
                         <TableCell className="align-top whitespace-normal">
-                          {format(new Date(a.scheduled_at), "MMM d, yyyy · h:mm a")}
+                          <LocalDateTimeText iso={a.scheduled_at} pattern="MMM d, yyyy · h:mm a" />
                         </TableCell>
                         <TableCell className="align-top">
                           <StudentCell s={studentMap[a.student_id]} />
@@ -367,7 +368,9 @@ function CounselorAppointmentRow({
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
       <div className="space-y-1">
-        <p className="text-lg font-semibold">{format(new Date(a.scheduled_at), "h:mm a")}</p>
+        <p className="text-lg font-semibold">
+          <LocalDateTimeText iso={a.scheduled_at} pattern="h:mm a" />
+        </p>
         <StudentCell s={student} />
         <p className="text-muted-foreground mt-2 text-sm">{a.concern_type}</p>
         {a.notes ? (

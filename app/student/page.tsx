@@ -4,6 +4,7 @@ import { CalendarDays, MessageCircle, Sparkles } from "lucide-react";
 
 import ChatbotWidget from "@/components/ChatbotWidget";
 import { AppointmentStatusBadge } from "@/components/AppointmentStatusBadge";
+import { LocalDateTimeText } from "@/components/LocalDateTimeText";
 import { StudentSubnav } from "@/components/StudentSubnav";
 import { StudentAppBackground } from "@/components/student/StudentAppBackground";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -14,7 +15,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { shortDisplayName } from "@/lib/short-display-name";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 import { Suspense } from "react";
 
 async function UpcomingAppointments() {
@@ -67,7 +67,9 @@ async function UpcomingAppointments() {
           className="border-border flex flex-col gap-2 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
         >
           <div>
-            <p className="font-medium">{format(new Date(a.scheduled_at), "EEEE, MMM d · h:mm a")}</p>
+            <p className="font-medium">
+              <LocalDateTimeText iso={a.scheduled_at} pattern="EEEE, MMM d · h:mm a" />
+            </p>
             <p className="text-muted-foreground text-sm">with {counselorMap[a.counselor_id] ?? "counselor"}</p>
             <p className="text-muted-foreground mt-1 line-clamp-1 text-xs">{a.concern_type}</p>
           </div>

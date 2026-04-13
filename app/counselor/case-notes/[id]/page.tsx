@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -6,6 +5,7 @@ import { z } from "zod";
 import { CounselorCaseNoteForm } from "@/components/CounselorCaseNoteForm";
 import { CounselorSubnav } from "@/components/CounselorSubnav";
 import { AppointmentStatusBadge } from "@/components/AppointmentStatusBadge";
+import { LocalDateTimeText } from "@/components/LocalDateTimeText";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { decrypt } from "@/lib/encryption";
@@ -89,7 +89,7 @@ export default async function CounselorCaseNotePage({ params }: PageProps) {
             </Link>
             <h1 className="text-2xl font-semibold tracking-tight">Case note</h1>
             <p className="text-muted-foreground text-sm">
-              {format(new Date(appt.scheduled_at), "EEEE, MMM d, yyyy · h:mm a")}
+              <LocalDateTimeText iso={appt.scheduled_at} pattern="EEEE, MMM d, yyyy · h:mm a" />
             </p>
           </div>
           <AppointmentStatusBadge status={appt.status} />

@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CONCERN_TYPES } from "@/lib/concerns";
+import { instantFromYmdHm } from "@/lib/appointment-slots";
 import { generateDayTimeSlots } from "@/lib/time-slots";
 import { cn } from "@/lib/utils";
 
@@ -62,10 +63,10 @@ export function BookAppointmentForm({ counselors }: BookAppointmentFormProps) {
 
   const scheduledAtIso = useMemo(() => {
     if (!date || !timeSlot) return null;
-    const [hh, mm] = timeSlot.split(":").map(Number);
-    const d = new Date(date);
-    d.setHours(hh, mm, 0, 0);
-    return d.toISOString();
+    const ymd = format(date, "yyyy-MM-dd");
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const instant = instantFromYmdHm(ymd, timeSlot, tz);
+    return instant ? instant.toISOString() : null;
   }, [date, timeSlot]);
 
   useEffect(() => {
