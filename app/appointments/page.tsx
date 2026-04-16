@@ -133,7 +133,7 @@ export default async function AppointmentsPage() {
                   <TableBody>
                     {upcoming.map((a) => {
                       const c = counselorMap[a.counselor_id];
-                      const canCancel = a.status === "pending" || a.status === "confirmed";
+                      const canCancel = a.status === "pending";
                       return (
                         <TableRow key={a.id}>
                           <TableCell className="whitespace-nowrap font-medium">
@@ -145,7 +145,7 @@ export default async function AppointmentsPage() {
                             <AppointmentStatusBadge status={a.status} />
                           </TableCell>
                           <TableCell>
-                            <StudentAppointmentCancelButton appointmentId={a.id} disabled={!canCancel} />
+                            {canCancel ? <StudentAppointmentCancelButton appointmentId={a.id} disabled={false} /> : null}
                           </TableCell>
                         </TableRow>
                       );
